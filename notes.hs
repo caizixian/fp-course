@@ -60,10 +60,38 @@ isInList e list =
         [] -> False
         (x:xs) -> (e == x) || isInList e xs
 
-data List a = Nil | Cons a (List a)
+-- data List a = Nil | Cons a (List a)
+data List t =
+    Nil
+    | t :. List t
+    deriving (Eq, Ord)
 
 addList :: List Integer -> Integer
 addList Nil = 0
-addList (Cons x xs) = x + addList xs
+addList (x:.xs) = x + addList xs
+
+foldRight :: (a -> b -> b) -> b -> List a -> b
+foldRight _ b Nil      = b
+foldRight f b (h :. t) = f h (foldRight f b t)
 
 -- Day 2
+data Optional a =
+    Full a
+    | Empty
+    deriving (Eq, Show)
+
+class ThingsThatMap k where
+    howtodomap :: (a -> b) -> k a -> k b
+
+instance ThingsThatMap Optional where
+    howtodomap _ Empty = Empty
+    howtodomap f (Full a) = Full (f a)
+
+instance ThingsThatMap List where
+    howtodomap f = foldRight ((:.) . f) Nil
+
+instance ThingsThatMap ((->) t) where
+    howtodomap a2b t2a = \t -> a2b $ t2a t
+
+amapAnything :: ThingsThatMap k => b -> k a -> k b
+amapAnything b x = howtodomap (\_ -> b) x
