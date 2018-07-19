@@ -122,7 +122,7 @@ instance Applicative ((->) t) where
     ((->) t (a -> b))
     -> ((->) t a)
     -> ((->) t b)
-  (<*>) a b = (\x -> (a x) (b x))
+  (<*>) a b = (\x -> (a x) (b x)) -- pattern f x (g x)
 
 
 -- | Apply a binary function in the environment.

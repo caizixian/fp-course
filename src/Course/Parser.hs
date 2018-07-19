@@ -119,8 +119,10 @@ constantParser =
 -- True
 character ::
   Parser Char
-character =
-  error "todo: Course.Parser#character"
+character = P $
+  \input -> case input of
+    Nil -> UnexpectedEof
+    h:.t -> Result t h
 
 -- | Parsers can map.
 -- Write a Functor instance for a @Parser@.
@@ -132,8 +134,9 @@ instance Functor Parser where
     (a -> b)
     -> Parser a
     -> Parser b
-  (<$>) =
-     error "todo: Course.Parser (<$>)#instance Parser"
+  --(<$>) f p = P (\i -> f <$> (parse p i))
+  (<$>) f p = P ((<$>) f <$> parse p)
+-- \x -> f (g x) <=> f . g
 
 -- | Return a parser that always succeeds with the given value and consumes no input.
 --
@@ -142,8 +145,8 @@ instance Functor Parser where
 valueParser ::
   a
   -> Parser a
-valueParser =
-  error "todo: Course.Parser#valueParser"
+valueParser v = P $
+  \input -> Result input v
 
 -- | Return a parser that tries the first parser for a successful value.
 --
@@ -166,8 +169,10 @@ valueParser =
   Parser a
   -> Parser a
   -> Parser a
-(|||) =
-  error "todo: Course.Parser#(|||)"
+(|||) p1 p2 = P $
+  \input -> case parse p1 input of
+    r@(Result _ _) -> r
+    _ -> parse p2 input
 
 infixl 3 |||
 
@@ -198,8 +203,13 @@ instance Monad Parser where
     (a -> Parser b)
     -> Parser a
     -> Parser b
-  (=<<) =
-    error "todo: Course.Parser (=<<)#instance Parser"
+  (=<<) a2pb pa = P $
+    \input -> case parse pa input of
+      Result ri rv -> parse (a2pb rv) ri
+      UnexpectedEof -> UnexpectedEof
+      ExpectedEof i -> ExpectedEof i
+      UnexpectedChar c -> UnexpectedChar c
+      UnexpectedString s -> UnexpectedString s
 
 -- | Write an Applicative functor instance for a @Parser@.
 -- /Tip:/ Use @(=<<)@.
@@ -213,8 +223,10 @@ instance Applicative Parser where
     Parser (a -> b)
     -> Parser a
     -> Parser b
-  (<*>) =
-    error "todo: Course.Parser (<*>)#instance Parser"
+  (<*>) k_a2b ka =
+    k_a2b >>= \a2b ->
+    ka >>= \a ->
+    pure (a2b a)
 
 -- | Return a parser that continues producing a list of values from the given parser.
 --
@@ -237,11 +249,20 @@ instance Applicative Parser where
 --
 -- >>> parse (list (character *> valueParser 'v')) ""
 -- Result >< ""
+
+-- and then >>=
+-- always pure
+-- or |||
+-- 0 or many list
+-- 1 or many list1
+-- is is
+-- exactly thisMany n
+-- call it x \x ->
+-- (0 or many) p = (1 or many) p or always Nil
 list ::
   Parser a
   -> Parser (List a)
-list =
-  error "todo: Course.Parser#list"
+list p = list1 p ||| pure Nil
 
 -- | Return a parser that produces at least one value from the given parser then
 -- continues producing a list of values from the given parser (to ultimately produce a non-empty list).
@@ -256,11 +277,22 @@ list =
 --
 -- >>> isErrorResult (parse (list1 (character *> valueParser 'v')) "")
 -- True
+
+-- (1 or many) p =
+--   p and then, call it a
+--   (0 or many) p and then, call it b
+--   always (a:.b)
 list1 ::
   Parser a
   -> Parser (List a)
-list1 =
-  error "todo: Course.Parser#list1"
+-- list1 p = p >>=
+--  \a -> list p >>=
+--  \b -> pure (a:.b)
+-- list1 p = list2 (:.) p (list p)
+list1 p = do
+  a <- p
+  b <- list p
+  pure (a:.b)
 
 -- | Return a parser that produces a character but fails if
 --
