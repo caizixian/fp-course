@@ -95,3 +95,52 @@ instance ThingsThatMap ((->) t) where
 
 amapAnything :: ThingsThatMap k => b -> k a -> k b
 amapAnything b x = howtodomap (\_ -> b) x
+
+class Monoid m where
+    mempty :: m
+    mappend :: m -> m -> m
+    -- laws
+    -- mappend x mempty === x
+    -- mappend mempty x === x
+    -- mappend (mappend x y) z === mappend x (mappend y z)
+
+instance Monoid (List a) where
+    mempty = Nil
+    mappend = (++)
+
+-- instance Monoid (Optional a) where
+--     mempty = Empty
+--     mappend Empty a = a
+--     mappend a Empty = a
+
+instance Monoid a => Monoid (Optional a) where
+    mempty = Empty
+    mappend Empty a = a
+    mappend a Empty = a
+    mappend (Full x) (Full y) = Full (x `mappend` y)
+
+data Endo a = Endo (a -> a)
+
+instance Monoid (Endo a) where
+    mempty = Endo id
+    mappend (Endo f) (Endo g) = Endo (f . g)
+
+data Sum = Sum Int
+
+instance Monoid Sum where
+    mempty = Sum 0
+    mappend (Sum x) (Sum y) = Sum (x + y)
+
+foldMap :: Monoid m => List a -> (a -> m) -> m
+foldMap Nil _ = mempty
+foldMap (x:.xs) f = f x `mappend` foldMap xs f
+
+sum xs = case foldMap xs Sum of
+    Sum result -> result
+
+fold :: Monoid m => List m -> m
+fold xs = foldMap xs id
+
+composed :: Int -> Int
+composed = case foldMap [(+1), (*2), subtract 3] Endo of
+    Endo f -> f
